@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2015 Bryan Castleberry - Pixelbyte Studios
 //
-// Pixini version 0.1 - http://pixelbytestudios.com
+// Pixini version 0.2 - http://pixelbytestudios.com
 //                      http://github.com/bncastle/pixini
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -27,7 +27,7 @@ using System.IO;
 using System.Text;
 using System.Linq;
 
-namespace Pixelbyte
+namespace Pixelbyte.IO
 {
     /// <summary>
     /// As far as Pixini is concerned, each line of text
@@ -108,6 +108,12 @@ namespace Pixelbyte
         }
     }
 
+    //[System.ComponentModel.TypeConverter(typeof(Vector3))]
+    //class Vector3TypeDescriptor : System.ComponentModel.TypeDescriptor
+    //{
+
+    //}
+
     /// <summary>
     /// Pixini works with ini data. It knows how to load, change values and save ini data
     /// It is designed to work with .NET 3.5 (mono 2.0). Also no Regex objects are used.
@@ -116,7 +122,7 @@ namespace Pixelbyte
     /// </summary>
     public class Pixini
     {
-        public const string VERSION = "0.1";
+        public const string VERSION = "0.2";
 
         /// <summary>
         /// If a key/value is not under a specific section, it goes in the default section
@@ -475,7 +481,7 @@ namespace Pixelbyte
             return Delete(DEFAULT_SECTION, key);
         }
 
-        public void PostProcess()
+        void PostProcess()
         {
             HandleDefaultSection();
         }
@@ -483,7 +489,7 @@ namespace Pixelbyte
         /// <summary>
         /// This method handles naming the default section and ordering the section header to be where it should be
         /// </summary>
-        private void HandleDefaultSection()
+        void HandleDefaultSection()
         {
             //Here we look for the default section. If we don't find one, no worries
             List<IniLine> defsection;
@@ -616,48 +622,39 @@ namespace Pixelbyte
             return false;
         }
 
-        #region Getters
-
-        public string Get(string key, string sectionName = DEFAULT_SECTION, string defaultVal = null)
+        /// <summary>
+        /// Gets the desired value from the given key/section. This works when 'T'
+        /// is either float, int, or bool. Other types are not currently supported
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="key"></param>
+        /// <param name="sectionName"></param>
+        /// <param name="defaultVal"></param>
+        /// <returns></returns>
+        public T Get<T>(string key, string sectionName = DEFAULT_SECTION, T defaultVal = default(T))// where T : struct
         {
             string val = this[key, sectionName];
-            if (string.IsNullOrEmpty(val))
+
+            var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
+
+            if (string.IsNullOrEmpty(val) || !converter.CanConvertFrom(typeof(string)))
+            {
                 return defaultVal;
+            }
             else
-                return val;
+            {
+                try
+                {
+                    var Tval = converter.ConvertFrom(val);
+                    return (T)Tval;
+                }
+                catch
+                {
+                    //eat the exception and return the default value
+                    return defaultVal;
+                }
+            }
         }
-
-        public float GetF(string key, string sectionName = DEFAULT_SECTION, float defaultVal = float.NaN)
-        {
-            string s = Get(key, sectionName);
-            if (s == null)
-                return defaultVal;
-            float num;
-            if (float.TryParse(s, out num)) return num;
-            else return defaultVal;
-        }
-
-        public int GetI(string key, string sectionName = DEFAULT_SECTION, int defaultVal = int.MinValue)
-        {
-            string s = Get(key, sectionName);
-            if (s == null)
-                return defaultVal;
-            int num;
-            if (int.TryParse(s, out num)) return num;
-            else return defaultVal;
-        }
-
-        public bool GetB(string key, string sectionName = DEFAULT_SECTION, bool defaultVal = false)
-        {
-            string s = Get(key, sectionName);
-            if (s == null)
-                return defaultVal;
-
-            bool flag;
-            if (Boolean.TryParse(s, out flag)) return flag;
-            return defaultVal;
-        }
-        #endregion
 
         #region Setters
         public void Set<T>(string key, string sectionName, T val)
@@ -675,105 +672,43 @@ namespace Pixelbyte
 
         /// <summary>
         /// Gets the array associated with this key in this section given that one exists
+        /// Note: This works when 'T' is either float, int, or bool. Other types are not currently supported
         /// Note: The array returned here can be DIRECTLY modified and the changes will show
         /// up when rendering the ini data. Be careful thought. If you want to change the size of the
         /// array, then you must use the ArrSet() method instead!
         /// </summary>
         /// <param name="key"></param>
         /// <param name="sectionName"></param>
-        /// <returns>The array or null if it does not exist</returns>
-        public string[] ArrGet(string key, string sectionName = DEFAULT_SECTION)
+        /// <returns>The array or null if it does not exist or cannot be converted to the given type T</returns>
+        public T[] AGet<T>(string key, string sectionName = DEFAULT_SECTION)
         {
             IniLine iniLine;
-            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
-                return null;
-            else
-                return iniLine.array;
-        }
-
-        /// <summary>
-        /// Gets the array associated with this key in this section given that one exists
-        /// Notes: 
-        /// This WILL throw a System.FormatException if the data is not in the correct format
-        /// To change the array data, you must use the ArrSet<T() method.
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="sectionName"></param>
-        /// <returns>The array or null if it does not exist</returns>
-        public float[] ArrGetF(string key, string sectionName = DEFAULT_SECTION)
-        {
-            IniLine iniLine;
+            var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
             if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
                 return null;
             else
             {
-                float[] arr = null;
-                //try
+                T[] arr = null;
+                arr = iniLine.array.Select(val =>
                 {
-                    arr = iniLine.array.Select((str) => float.Parse(str)).ToArray();
-                }
-                //catch (Exception) //eat it
-                //{
-                //    arr = null;
-                //}
-                return arr;
-            }
-        }
-
-        /// <summary>
-        /// Gets the array associated with this key in this section given that one exists
-        /// Notes: 
-        /// This WILL throw a System.FormatException if the data is not in the correct format
-        /// To change the array data, you must use the ArrSet<T() method.
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="sectionName"></param>
-        /// <returns>The array or null if it does not exist</returns>
-        public int[] ArrGetI(string key, string sectionName = DEFAULT_SECTION)
-        {
-            IniLine iniLine;
-            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
-                return null;
-            else
-            {
-                int[] arr = null;
-                //try
-                {
-                    arr = iniLine.array.Select((str) => int.Parse(str)).ToArray();
-                }
-                //catch (Exception) //eat it
-                //{
-                //    arr = null;
-                //}
-                return arr;
-            }
-        }
-
-        /// <summary>
-        /// Gets the array associated with this key in this section given that one exists
-        /// Notes: 
-        /// This WILL throw a System.FormatException if the data is not in the correct format
-        /// To change the array data, you must use the ArrSet<T() method.
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="sectionName"></param>
-        /// <returns>The array or null if it does not exist</returns>
-        public bool[] ArrGetB(string key, string sectionName = DEFAULT_SECTION)
-        {
-            IniLine iniLine;
-            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
-                return null;
-            else
-            {
-                bool[] arr = null;
-                //try
-                {
-                    arr = iniLine.array.Select((str) => bool.Parse(str)).ToArray();
-                }
-                //catch (Exception) //eat it
-                //{
-                //    arr = null;
-                //}
+                    if (string.IsNullOrEmpty(val) || !converter.CanConvertFrom(typeof(string)))
+                    {
+                        return default(T);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var Tval = converter.ConvertFrom(val);
+                            return (T)Tval;
+                        }
+                        catch
+                        {
+                            //eat the exception and return the default value
+                            return default(T);
+                        }
+                    }
+                }).ToArray();
                 return arr;
             }
         }
@@ -789,7 +724,7 @@ namespace Pixelbyte
         /// <param name="section"></param>
         /// <param name="vals"></param>
         /// <returns>true on success, false otherwise</returns>
-        bool ArrSet(string key, string sectionName, params string[] vals)
+        bool ASet(string key, string sectionName, params string[] vals)
         {
             IniLine iniLine;
             if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
@@ -803,9 +738,9 @@ namespace Pixelbyte
             }
         }
 
-        bool ArrSet(string key, params string[] vals)
+        bool ASet(string key, params string[] vals)
         {
-            return ArrSet(key, DEFAULT_SECTION, vals);
+            return ASet(key, DEFAULT_SECTION, vals);
         }
 
         /// <summary>
@@ -815,7 +750,7 @@ namespace Pixelbyte
         /// <param name="section"></param>
         /// <param name="vals"></param>
         /// <returns>true on success, false otherwise</returns>
-        public bool ArrSet<T>(string key, string sectionName, params T[] vals) where T : struct
+        public bool ASet<T>(string key, string sectionName, params T[] vals) where T : struct
         {
             IniLine iniLine;
             if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
@@ -832,9 +767,9 @@ namespace Pixelbyte
             }
         }
 
-        public bool ArrSet<T>(string key, params T[] vals) where T : struct
+        public bool ASet<T>(string key, params T[] vals) where T : struct
         {
-            return ArrSet<T>(key, DEFAULT_SECTION, vals);
+            return ASet<T>(key, DEFAULT_SECTION, vals);
         }
         #endregion
 

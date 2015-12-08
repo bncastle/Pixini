@@ -1,7 +1,5 @@
-﻿using Pixelbyte;
+﻿using Pixelbyte.IO;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace PixiniTest
 {

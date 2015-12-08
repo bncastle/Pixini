@@ -1,8 +1,5 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Pixelbyte;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using Pixelbyte.IO;
 
 namespace PixiniUnitTest
 {
@@ -16,8 +13,8 @@ namespace PixiniUnitTest
 
             p.Set("Case","My", "suit");
 
-            Assert.AreEqual<string>("suit", p.Get("Case", "My"));
-            Assert.AreEqual<string>("suit", p["Case", "My"]);
+            Assert.AreEqual("suit", p.Get("Case", "My", ""));
+            Assert.AreEqual("suit", p["Case", "My"]);
         }
 
         [TestMethod]
@@ -27,7 +24,7 @@ namespace PixiniUnitTest
 
             p.Set("Integer", "My", 45);
 
-            Assert.AreEqual<int>(45, p.GetI("Integer", "My"));
+            Assert.AreEqual(45, p.Get("Integer", "My", 0));
         }
 
         [TestMethod]
@@ -37,7 +34,7 @@ namespace PixiniUnitTest
 
             p.Set("Floater", "My", 560.896f);
 
-            Assert.AreEqual<float>(560.896f, p.GetF("Floater", "My"));
+            Assert.AreEqual(560.896f, p.Get<float>("Floater", "My"));
         }
 
         [TestMethod]
@@ -47,7 +44,7 @@ namespace PixiniUnitTest
 
             p.Set("Booler", "My", true);
 
-            Assert.AreEqual<bool>(true, p.GetB("Booler", "My"));
+            Assert.AreEqual(true, p.Get<bool>("Booler", "My"));
         }
 
         [TestMethod]
@@ -59,13 +56,13 @@ namespace PixiniUnitTest
             p["CaseTest", "My"] = "suit";
 
             //Test Section Case insensitivity
-            Assert.AreEqual<string>("suit", p["Casetest", "my"]);
+            Assert.AreEqual("suit", p["Casetest", "my"]);
 
             //Test key case insensitivity
-            Assert.AreEqual<string>("suit", p["casetest", "my"]);
+            Assert.AreEqual("suit", p["casetest", "my"]);
 
             //Test section and key case insensitivity
-            Assert.AreEqual<string>("suit", p["Casetest", "My"]);
+            Assert.AreEqual("suit", p["Casetest", "My"]);
         }
 
         [TestMethod]
@@ -73,20 +70,20 @@ namespace PixiniUnitTest
         {
             Pixini p = new Pixini();
 
-            Assert.AreEqual<string>("chunky", p.Get("Monkey", "animals", "chunky"));
-            Assert.AreEqual<string>(null, p.Get("Monkey", "animals"));
+            Assert.AreEqual("chunky", p.Get("Monkey", "animals", "chunky"));
+            Assert.AreEqual(string.Empty, p.Get("Monkey", "animals", string.Empty));
 
             //Test Int
-            Assert.AreEqual<int>(783, p.GetI("MonkeyAge", "animals", 783));
-            Assert.AreEqual<int>(int.MinValue, p.GetI("MonkeyAge", "animals"));
+            Assert.AreEqual(783, p.Get("MonkeyAge", "animals", 783));
+            Assert.AreEqual(int.MinValue, p.Get("MonkeyAge", "animals", int.MinValue));
 
             //Test float
-            Assert.AreEqual<float>(65.91f, p.GetF("MonkeyInjection", "animals", 65.91f));
-            Assert.AreEqual<float>(float.NaN, p.GetF("MonkeyInjection", "animals"));
+            Assert.AreEqual(65.91f, p.Get("MonkeyInjection", "animals", 65.91f));
+            Assert.AreEqual(float.NaN, p.Get("MonkeyInjection", "animals", float.NaN));
 
             //test bool
-            Assert.AreEqual<bool>(true, p.GetB("MonkeyGood", "animals", true));
-            Assert.AreEqual<bool>(false, p.GetB("MonkeyGood", "animals"));
+            Assert.AreEqual(true, p.Get("MonkeyGood", "animals", true));
+            Assert.AreEqual(false, p.Get<bool>("MonkeyGood", "animals"));
         }
 
         [TestMethod]
@@ -97,8 +94,8 @@ namespace PixiniUnitTest
             p.Set("Case", "My", "suit");
             p.Set("ShirtColor", "My", "red");
 
-            Assert.AreEqual<string>("red", p.Get("ShirtColor", "My"));
-            Assert.AreEqual<string>("suit", p["Case", "My"]);
+            Assert.AreEqual("red", p.Get<string>("ShirtColor", "My"));
+            Assert.AreEqual("suit", p["Case", "My"]);
 
             p.Delete("ShirtColor", "my");
             Assert.AreEqual<string>(null, p["ShirtColor", "My"]);
@@ -115,10 +112,10 @@ namespace PixiniUnitTest
             var p = Pixini.LoadFromString(iniString);
 
             //The single value should be null since this is now a list
-            Assert.IsNull(p.Get("ShirtColors"));
+            Assert.IsNull(p.Get<string>("ShirtColors"));
 
             //Compare the returned collection with expected
-            CollectionAssert.AreEqual(new string[] { "red", "green", "blue", "brown", "beige" }, p.ArrGet("shirtcolors"));
+            CollectionAssert.AreEqual(new string[] { "red", "green", "blue", "brown", "beige" }, p.AGet<string>("shirtcolors"));
         }
 
         [TestMethod]
@@ -129,18 +126,18 @@ namespace PixiniUnitTest
             var p = Pixini.LoadFromString(iniString);
 
             //The single value should be null since this is a list
-            Assert.IsNull(p.Get("Temperatures"));
+            Assert.IsNull(p.Get<string>("Temperatures"));
 
-            var fArray = p.ArrGetF("Temperatures");
+            var fArray = p.AGet<float>("Temperatures");
 
             //Change some of the values, re-set the array
             fArray[0] = 46.3f;
             fArray[3] = 110.1f;
 
-            p.ArrSet<float>("temperatures", fArray);
+            p.ASet<float>("temperatures", fArray);
 
             //Compare the returned collection with expected
-            CollectionAssert.AreEqual(new float[] { 46.3f, 63.3f, 92.1f, 110.1f, 64.4f }, p.ArrGetF("Temperatures"));
+            CollectionAssert.AreEqual(new float[] { 46.3f, 63.3f, 92.1f, 110.1f, 64.4f }, p.AGet<float>("Temperatures"));
         }
 
         [TestMethod]
@@ -156,7 +153,7 @@ namespace PixiniUnitTest
             p["shirtcolors"] = "striped";
 
             //Now the array should return null
-            Assert.IsNull(p.ArrGet("shirtcolors"));
+            Assert.IsNull(p.AGet<string>("shirtcolors"));
 
             Assert.AreEqual("striped", p["shirtcolors"]);
 
@@ -164,7 +161,7 @@ namespace PixiniUnitTest
             p["shirtcolors"] = "checkered, black, blue";
             Assert.IsNull(p["shirtcolors"]);
 
-            CollectionAssert.AreEqual(new string[] { "checkered", "black", "blue" }, p.ArrGet("ShirtColors"));
+            CollectionAssert.AreEqual(new string[] { "checkered", "black", "blue" }, p.AGet<string>("ShirtColors"));
         }
 
         [TestMethod]
@@ -174,7 +171,7 @@ namespace PixiniUnitTest
             var p = Pixini.LoadFromString(iniString);
 
             //Since the above is double quoted, it should NOT have been converted to an array
-            Assert.IsNull(p.ArrGet("cars"));
+            Assert.IsNull(p.AGet<string>("cars"));
 
             //When we pull the value back out, it should NOT have the quotes around it
             Assert.AreEqual("German, American, Japanese", p["Cars"]);
@@ -190,7 +187,7 @@ namespace PixiniUnitTest
             var p = Pixini.LoadFromString(iniString);
 
             //Since the above is double quoted, it should NOT have been converted to an array
-            Assert.IsNull(p.ArrGet("cars"));
+            Assert.IsNull(p.AGet<string>("cars"));
 
             //When we pull the value back out, it should NOT have the quotes around it
             Assert.AreEqual("German, American, Japanese", p["Cars"]);
@@ -221,11 +218,11 @@ avagadro=6.022
 ";
             var p = Pixini.LoadFromString(iniString);
 
-            Assert.AreEqual<bool>(true, p.GetB("switch2", "main", false));
-            Assert.AreEqual<bool>(false, p.GetB("switch0", "main", true));
+            Assert.AreEqual<bool>(true, p.Get("switch2", "main", false));
+            Assert.AreEqual<bool>(false, p.Get("switch0", "main", true));
             Assert.AreEqual<string>("CHANGEME", p.Get("playername", "main", "no"));
 
-            Assert.AreEqual<float>(6.022f, p.GetF("avagadro", "anothersection", 1.0f));
+            Assert.AreEqual<float>(6.022f, p.Get("avagadro", "anothersection", 1.0f));
         }
     }
 }
