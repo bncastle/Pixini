@@ -53,6 +53,11 @@ namespace Pixelbyte.IO
         public string value;
 
         /// <summary>
+        /// True if this IniLine is an array
+        /// </summary>
+        public bool IsArray { get { return array != null; } }
+
+        /// <summary>
         /// This is for comma separated values. If Pixini detects a valid CSV, it
         /// will separate them and stick them in this array. Note that while the 
         /// full unseparated value will still be available in the value field,
@@ -140,6 +145,16 @@ namespace Pixelbyte.IO
         /// Change this to your liking... 
         /// </summary>
         public char inputKVSeparator = '=';
+
+        /// <summary>
+        /// Subscribe to this event to be notified of any warnings that occur during parsing
+        /// </summary>
+        public event Action<string> logWarning;
+
+        /// <summary>
+        /// Subscribe to this event to be notified of any errors that occur during parsing
+        /// </summary>
+        public event Action<string> logError;
 
         /// <summary>
         /// This is the separator character that Pixini will use when outputting a Key/Value Pair
@@ -391,6 +406,156 @@ namespace Pixelbyte.IO
         }
         #endregion
 
+        #region Getters/Setters
+
+        /// <summary>
+        /// Gets the desired value from the given key/section. This works when 'T'
+        /// is either float, int, or bool. Other types are not currently supported
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="key"></param>
+        /// <param name="sectionName"></param>
+        /// <param name="defaultVal"></param>
+        /// <returns></returns>
+        public T Get<T>(string key, string sectionName = DEFAULT_SECTION, T defaultVal = default(T))// where T : struct
+        {
+            string val = this[key, sectionName];
+
+            var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
+
+            if (string.IsNullOrEmpty(val) || !converter.CanConvertFrom(typeof(string)))
+            {
+                return defaultVal;
+            }
+            else
+            {
+                try
+                {
+                    var Tval = converter.ConvertFrom(val);
+                    return (T)Tval;
+                }
+                catch
+                {
+                    //eat the exception and return the default value
+                    return defaultVal;
+                }
+            }
+        }
+
+        public void Set<T>(string key, string sectionName, T val)
+        {
+            this[key, sectionName] = val.ToString();
+        }
+
+        public void Set<T>(string key, T val)
+        {
+            this[key, DEFAULT_SECTION] = val.ToString();
+        }
+        #endregion
+
+        #region Array Getters/Setters
+
+        /// <summary>
+        /// Gets the array associated with this key in this section given that one exists
+        /// Note: This works when 'T' is either double, float, int, or bool. Other types are not currently supported
+        /// Note: The array returned here can be DIRECTLY modified and the changes will show
+        /// up when rendering the ini data. Be careful thought. If you want to change the size of the
+        /// array, then you must use the ArrSet() method instead!
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="sectionName"></param>
+        /// <returns>The array or null if it does not exist or cannot be converted to the given type T</returns>
+        public T[] AGet<T>(string key, string sectionName = DEFAULT_SECTION)
+        {
+            IniLine iniLine;
+            var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
+            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
+                return null;
+            else
+            {
+                T[] arr = null;
+                arr = iniLine.array.Select(val =>
+                {
+                    if (string.IsNullOrEmpty(val) || !converter.CanConvertFrom(typeof(string)))
+                    {
+                        return default(T);
+                    }
+                    else
+                    {
+                        try
+                        {
+                            var Tval = converter.ConvertFrom(val);
+                            return (T)Tval;
+                        }
+                        catch
+                        {
+                            //eat the exception and return the default value
+                            return default(T);
+                        }
+                    }
+                }).ToArray();
+                return arr;
+            }
+        }
+
+        /// <summary>
+        /// Sets an array on the given key in the given section
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="section"></param>
+        /// <param name="vals"></param>
+        /// <returns>true on success, false otherwise</returns>
+        bool ASet(string key, string sectionName, params string[] vals)
+        {
+            IniLine iniLine;
+            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
+                return false;
+            else
+            {
+                iniLine.value = null;
+                iniLine.array = vals;
+                iniLine.quotechar = '\0';
+                return true;
+            }
+        }
+
+        bool ASet(string key, params string[] vals)
+        {
+            return ASet(key, DEFAULT_SECTION, vals);
+        }
+
+        /// <summary>
+        /// Sets an array on the given key in the given section
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="section"></param>
+        /// <param name="vals"></param>
+        /// <returns>true on success, false otherwise</returns>
+        public bool ASet<T>(string key, string sectionName, params T[] vals) where T : struct
+        {
+            IniLine iniLine;
+            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
+                return false;
+            else
+            {
+                iniLine.value = null;
+                iniLine.array = vals.Select((val) => val.ToString()).ToArray();
+                iniLine.quotechar = '\0';
+
+                //Since we are dealing with structs, we must replace the actual struct instance in the section list...
+                ModifyIniLine(iniLine);
+                return true;
+            }
+        }
+
+        public bool ASet<T>(string key, params T[] vals) where T : struct
+        {
+            return ASet<T>(key, DEFAULT_SECTION, vals);
+        }
+        #endregion
+
+        #region Other Operations
+
         /// <summary>
         /// Removes the given key from the given section
         /// </summary>
@@ -480,6 +645,39 @@ namespace Pixelbyte.IO
         {
             return Delete(DEFAULT_SECTION, key);
         }
+
+        /// <summary>
+        /// Determines if the specified key is an array
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="sectionName"></param>
+        /// <returns>true if the key data is an array, false otherwise</returns>
+        public bool IsArray(string key, string sectionName = DEFAULT_SECTION)
+        {
+            IniLine info;
+            if (GetLineInfo(key, sectionName, out info))
+                return info.IsArray;
+            else
+                return false;
+        }
+
+        /// <summary>
+        /// Returns a string containing the contents of the ini data
+        /// </summary>
+        public override string ToString()
+        {
+            var enumerator = Lines();
+
+            StringBuilder sb = new StringBuilder();
+            while (enumerator.MoveNext())
+            {
+                if (enumerator.Current != null)
+                    sb.AppendLine(enumerator.Current);
+            }
+            return sb.ToString();
+        }
+
+        #endregion
 
         void PostProcess()
         {
@@ -623,157 +821,6 @@ namespace Pixelbyte.IO
         }
 
         /// <summary>
-        /// Gets the desired value from the given key/section. This works when 'T'
-        /// is either float, int, or bool. Other types are not currently supported
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="key"></param>
-        /// <param name="sectionName"></param>
-        /// <param name="defaultVal"></param>
-        /// <returns></returns>
-        public T Get<T>(string key, string sectionName = DEFAULT_SECTION, T defaultVal = default(T))// where T : struct
-        {
-            string val = this[key, sectionName];
-
-            var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
-
-            if (string.IsNullOrEmpty(val) || !converter.CanConvertFrom(typeof(string)))
-            {
-                return defaultVal;
-            }
-            else
-            {
-                try
-                {
-                    var Tval = converter.ConvertFrom(val);
-                    return (T)Tval;
-                }
-                catch
-                {
-                    //eat the exception and return the default value
-                    return defaultVal;
-                }
-            }
-        }
-
-        #region Setters
-        public void Set<T>(string key, string sectionName, T val)
-        {
-            this[key, sectionName] = val.ToString();
-        }
-
-        public void Set<T>(string key, T val)
-        {
-            this[key, DEFAULT_SECTION] = val.ToString();
-        }
-        #endregion
-
-        #region Array Getters
-
-        /// <summary>
-        /// Gets the array associated with this key in this section given that one exists
-        /// Note: This works when 'T' is either float, int, or bool. Other types are not currently supported
-        /// Note: The array returned here can be DIRECTLY modified and the changes will show
-        /// up when rendering the ini data. Be careful thought. If you want to change the size of the
-        /// array, then you must use the ArrSet() method instead!
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="sectionName"></param>
-        /// <returns>The array or null if it does not exist or cannot be converted to the given type T</returns>
-        public T[] AGet<T>(string key, string sectionName = DEFAULT_SECTION)
-        {
-            IniLine iniLine;
-            var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
-            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
-                return null;
-            else
-            {
-                T[] arr = null;
-                arr = iniLine.array.Select(val =>
-                {
-                    if (string.IsNullOrEmpty(val) || !converter.CanConvertFrom(typeof(string)))
-                    {
-                        return default(T);
-                    }
-                    else
-                    {
-                        try
-                        {
-                            var Tval = converter.ConvertFrom(val);
-                            return (T)Tval;
-                        }
-                        catch
-                        {
-                            //eat the exception and return the default value
-                            return default(T);
-                        }
-                    }
-                }).ToArray();
-                return arr;
-            }
-        }
-
-        #endregion
-
-        #region Array Setters
-
-        /// <summary>
-        /// Sets an array on the given key in the given section
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="section"></param>
-        /// <param name="vals"></param>
-        /// <returns>true on success, false otherwise</returns>
-        bool ASet(string key, string sectionName, params string[] vals)
-        {
-            IniLine iniLine;
-            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
-                return false;
-            else
-            {
-                iniLine.value = null;
-                iniLine.array = vals;
-                iniLine.quotechar = '\0';
-                return true;
-            }
-        }
-
-        bool ASet(string key, params string[] vals)
-        {
-            return ASet(key, DEFAULT_SECTION, vals);
-        }
-
-        /// <summary>
-        /// Sets an array on the given key in the given section
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="section"></param>
-        /// <param name="vals"></param>
-        /// <returns>true on success, false otherwise</returns>
-        public bool ASet<T>(string key, string sectionName, params T[] vals) where T : struct
-        {
-            IniLine iniLine;
-            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
-                return false;
-            else
-            {
-                iniLine.value = null;
-                iniLine.array = vals.Select((val) => val.ToString()).ToArray();
-                iniLine.quotechar = '\0';
-
-                //Since we are dealing with structs, we must replace the actual struct instance in the section list...
-                ModifyIniLine(iniLine);
-                return true;
-            }
-        }
-
-        public bool ASet<T>(string key, params T[] vals) where T : struct
-        {
-            return ASet<T>(key, DEFAULT_SECTION, vals);
-        }
-        #endregion
-
-        /// <summary>
         /// Returns the index of the first input key/value separator it finds, or -1
         /// </summary>
         /// <param name="txt"></param>
@@ -847,13 +894,16 @@ namespace Pixelbyte.IO
         #region Logging methods
         void LogWarning(string text, params object[] args)
         {
-            //string input = string.Format("[line {0}] WARN: {1}", lineNumber, text);
+            string msg = string.Format("[line {0}] WARN: {1}", lineNumber, string.Format(text, args));
+
+            if (logWarning != null) logWarning(msg);
             //Console.WriteLine(input, args);
         }
 
         void LogError(string text, params object[] args)
         {
-            //string input = string.Format("[line {0}] ERR: {1}", lineNumber, text);
+            string msg = string.Format("[line {0}] ERR: {1}", lineNumber, string.Format(text, args));
+            if (logError != null) logError(msg);
             //Console.WriteLine(input, args);
         }
         #endregion
@@ -1041,11 +1091,11 @@ namespace Pixelbyte.IO
             {
                 vals = value.Split(',').Select((csv) => csv.Trim()).ToArray();
 
-                //Either the value field or the array field will be valid. Not both
+                //The array field cannot contain just one element
                 if (vals != null && vals.Length == 1)
                     vals = null;
-                else
-                    value = null;
+                //else
+                //    value = null;
             }
 
             //Ok then return what we found
@@ -1181,22 +1231,6 @@ namespace Pixelbyte.IO
                     throw new Exception("Unable to find the section in the dictionary list: " + st);
                 }
             }
-        }
-
-        /// <summary>
-        /// Returns a string containing the contents of the ini data
-        /// </summary>
-        public override string ToString()
-        {
-            var enumerator = Lines();
-
-            StringBuilder sb = new StringBuilder();
-            while (enumerator.MoveNext())
-            {
-                if (enumerator.Current != null)
-                    sb.AppendLine(enumerator.Current);
-            }
-            return sb.ToString();
         }
     }
 }

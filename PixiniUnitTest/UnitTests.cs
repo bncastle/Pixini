@@ -111,8 +111,10 @@ namespace PixiniUnitTest
 
             var p = Pixini.LoadFromString(iniString);
 
-            //The single value should be null since this is now a list
-            Assert.IsNull(p.Get<string>("ShirtColors"));
+            //Verify the arrya is of the correct length
+            Assert.AreEqual(p.AGet<string>("ShirtColors").Length, 5);
+
+            Assert.IsTrue(p.IsArray("ShirtColors"));
 
             //Compare the returned collection with expected
             CollectionAssert.AreEqual(new string[] { "red", "green", "blue", "brown", "beige" }, p.AGet<string>("shirtcolors"));
@@ -125,8 +127,8 @@ namespace PixiniUnitTest
 
             var p = Pixini.LoadFromString(iniString);
 
-            //The single value should be null since this is a list
-            Assert.IsNull(p.Get<string>("Temperatures"));
+            //Verify the arrya is of the correct length
+            Assert.AreEqual(p.AGet<float>("Temperatures").Length, 5);
 
             var fArray = p.AGet<float>("Temperatures");
 
@@ -146,20 +148,18 @@ namespace PixiniUnitTest
             string iniString = @"ShirtColors=red,green,blue,brown,beige";
             var p = Pixini.LoadFromString(iniString);
 
-            //At this point, the value shouild be null since we should have picekd up the array
-            Assert.IsNull(p["shirtcolors"]);
+            Assert.IsTrue(p.IsArray("ShirtColors"));
 
             //Ok, now let's set the shirt color to a single
             p["shirtcolors"] = "striped";
 
-            //Now the array should return null
-            Assert.IsNull(p.AGet<string>("shirtcolors"));
+            Assert.IsFalse(p.IsArray("ShirtColors"));
 
             Assert.AreEqual("striped", p["shirtcolors"]);
 
             //Now set it to something that is a CSV
             p["shirtcolors"] = "checkered, black, blue";
-            Assert.IsNull(p["shirtcolors"]);
+            Assert.IsTrue(p.IsArray("ShirtColors"));
 
             CollectionAssert.AreEqual(new string[] { "checkered", "black", "blue" }, p.AGet<string>("ShirtColors"));
         }
