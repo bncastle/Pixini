@@ -113,12 +113,6 @@ namespace Pixelbyte.IO
         }
     }
 
-    //[System.ComponentModel.TypeConverter(typeof(Vector3))]
-    //class Vector3TypeDescriptor : System.ComponentModel.TypeDescriptor
-    //{
-
-    //}
-
     /// <summary>
     /// Pixini works with ini data. It knows how to load, change values and save ini data
     /// It is designed to work with .NET 3.5 (mono 2.0). Also no Regex objects are used.
@@ -555,6 +549,12 @@ namespace Pixelbyte.IO
         #endregion
 
         #region Other Operations
+
+        public bool SectionExists(string sectionName)
+        {
+            if (string.IsNullOrEmpty(sectionName)) return false;
+            return sections.ContainsKey(sectionName.ToLower());
+        }
 
         /// <summary>
         /// Removes the given key from the given section
