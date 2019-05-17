@@ -165,7 +165,7 @@ namespace Pixelbyte.IO
         /// This dictionary Holds all the sections found in the ini file and is 
         /// also used to hold newly-constructed sections
         /// </summary>
-        Dictionary<string, List<IniLine>> sections;
+        Dictionary<string, List<IniLine>> sectionMap;
 
 
         /// <summary>
@@ -225,7 +225,7 @@ namespace Pixelbyte.IO
                 var sectionNameLowerCase = sectionName.ToLower();
                 var keyLowerCase = key.ToLower();
 
-                if (sections.TryGetValue(sectionNameLowerCase, out List<IniLine> section))
+                if (sectionMap.TryGetValue(sectionNameLowerCase, out List<IniLine> section))
                 {
                     IniLine iniLine;
                     int index = -1;
@@ -275,7 +275,7 @@ namespace Pixelbyte.IO
                 }
                 else
                 {
-                    sections[sectionName] = new List<IniLine>();
+                    sectionMap[sectionName] = new List<IniLine>();
 
                     //Add the new Section Name if needed
                     AddIniLine(new IniLine() { type = LineType.Section, section = sectionName });
@@ -293,6 +293,12 @@ namespace Pixelbyte.IO
                 }
             }
         }
+
+        /// <summary>
+        /// Returns an array with the sections contined in the parsed ini file
+        /// </summary>
+        public string[] SectionNames => sectionMap.Keys.ToArray();
+
         #endregion
 
         static Pixini()
@@ -306,7 +312,7 @@ namespace Pixelbyte.IO
         void Init()
         {
             structureOrder = new List<string>();
-            sections = new Dictionary<string, List<IniLine>>();
+            sectionMap = new Dictionary<string, List<IniLine>>();
             lineNumber = 1;
 
             //Add a default section
@@ -539,7 +545,7 @@ namespace Pixelbyte.IO
         public bool SectionExists(string sectionName)
         {
             if (string.IsNullOrEmpty(sectionName)) return false;
-            return sections.ContainsKey(sectionName.ToLower());
+            return sectionMap.ContainsKey(sectionName.ToLower());
         }
 
         /// <summary>
@@ -556,7 +562,7 @@ namespace Pixelbyte.IO
 
             List<IniLine> section;
             int index = -1;
-            if (sections.TryGetValue(sectionName, out section))
+            if (sectionMap.TryGetValue(sectionName, out section))
             {
                 //Search through the list to find the key if it exists
                 for (int i = 0; i < section.Count; i++)
@@ -578,7 +584,7 @@ namespace Pixelbyte.IO
                     if (!IniListContainstype(section, LineType.KeyValue))
                     {
                         section.Clear();
-                        sections[sectionName] = null;
+                        sectionMap[sectionName] = null;
                         for (int i = structureOrder.Count - 1; i >= 0; i--)
                         {
                             if (structureOrder[i] == sectionName)
@@ -605,10 +611,10 @@ namespace Pixelbyte.IO
             //Section names are case insensitive 
             sectionName = sectionName.ToLower();
 
-            if (sections.TryGetValue(sectionName, out section))
+            if (sectionMap.TryGetValue(sectionName, out section))
             {
                 section.Clear();
-                sections[sectionName] = null;
+                sectionMap[sectionName] = null;
                 for (int i = structureOrder.Count - 1; i >= 0; i--)
                 {
                     if (structureOrder[i] == sectionName)
@@ -677,7 +683,7 @@ namespace Pixelbyte.IO
         {
             //Here we look for the default section. If we don't find one, no worries
             List<IniLine> defsection;
-            if (sections.TryGetValue(defaultSectionLowerCased, out defsection))
+            if (sectionMap.TryGetValue(defaultSectionLowerCased, out defsection))
             {
                 //If there is a section header in here and it is NOT the first item in the list, move it to BEFORE the first key value pair
                 //This lets us support comments before the first section header
@@ -724,7 +730,7 @@ namespace Pixelbyte.IO
             key = key.ToLower();
 
             List<IniLine> section;
-            if (sections.TryGetValue(sectionName, out section))
+            if (sectionMap.TryGetValue(sectionName, out section))
             {
                 //Search through the list to find the key if it exists
                 for (int i = 0; i < section.Count; i++)
@@ -753,7 +759,7 @@ namespace Pixelbyte.IO
             sectionName = sectionName.ToLower();
 
             List<IniLine> section;
-            if (sections.TryGetValue(sectionName, out section))
+            if (sectionMap.TryGetValue(sectionName, out section))
                 return section;
             else
                 return null;
@@ -845,12 +851,12 @@ namespace Pixelbyte.IO
             List<IniLine> section;
 
             //If the section List does not exist, create it
-            if (!sections.TryGetValue(sectionLowerCased, out section))
+            if (!sectionMap.TryGetValue(sectionLowerCased, out section))
             {
                 //Ini files are supposed to be case insensitive so we lowercase all our keys
                 //for lookup only
-                sections[sectionLowerCased] = new List<IniLine>();
-                section = sections[sectionLowerCased];
+                sectionMap[sectionLowerCased] = new List<IniLine>();
+                section = sectionMap[sectionLowerCased];
             }
 
             //Otherwise, if it is a section header, make sure that one is not already in this section list
@@ -1194,7 +1200,7 @@ namespace Pixelbyte.IO
             //By definition, these IniLine instances should all be sections
             foreach (var st in structureOrder)
             {
-                if (sections.TryGetValue(st, out List<IniLine> section))
+                if (sectionMap.TryGetValue(st, out List<IniLine> section))
                 {
                     //Console.WriteLine("Length [{0}]: {1}", st, section.Count);
                     foreach (var line in section)
