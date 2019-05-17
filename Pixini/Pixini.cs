@@ -55,7 +55,7 @@ namespace Pixelbyte.IO
         /// <summary>
         /// True if this IniLine is an array
         /// </summary>
-        public bool IsArray { get { return array != null; } }
+        public bool IsArray => array != null;
 
         /// <summary>
         /// This is for comma separated values. If Pixini detects a valid CSV, it
@@ -121,7 +121,7 @@ namespace Pixelbyte.IO
     /// </summary>
     public class Pixini
     {
-        public const string VERSION = "0.2";
+        public const string VERSION = "0.21";
 
         /// <summary>
         /// If a key/value is not under a specific section, it goes in the default section
@@ -143,12 +143,12 @@ namespace Pixelbyte.IO
         /// <summary>
         /// Subscribe to this event to be notified of any warnings that occur during parsing
         /// </summary>
-        public event Action<string> logWarning;
+        public event Action<string> LogWarning;
 
         /// <summary>
         /// Subscribe to this event to be notified of any errors that occur during parsing
         /// </summary>
-        public event Action<string> logError;
+        public event Action<string> LogError;
 
         /// <summary>
         /// This is the separator character that Pixini will use when outputting a Key/Value Pair
@@ -214,21 +214,18 @@ namespace Pixelbyte.IO
         {
             get
             {
-                IniLine iniLine;
-                if (!GetLineInfo(key, sectionName, out iniLine))
+                if (!GetLineInfo(key, sectionName, out IniLine iniLine))
                     return null;
                 return iniLine.value;
             }
 
             set
             {
-                List<IniLine> section;
-
                 //Section names and key names are case insensitive 
                 var sectionNameLowerCase = sectionName.ToLower();
                 var keyLowerCase = key.ToLower();
 
-                if (sections.TryGetValue(sectionNameLowerCase, out section))
+                if (sections.TryGetValue(sectionNameLowerCase, out List<IniLine> section))
                 {
                     IniLine iniLine;
                     int index = -1;
@@ -303,10 +300,8 @@ namespace Pixelbyte.IO
             defaultSectionLowerCased = DEFAULT_SECTION.ToLower();
         }
 
-        public Pixini()
-        {
-            Init();
-        }
+        public Pixini() => Init();
+
 
         void Init()
         {
@@ -436,15 +431,10 @@ namespace Pixelbyte.IO
             }
         }
 
-        public void Set<T>(string key, string sectionName, T val)
-        {
-            this[key, sectionName] = val.ToString();
-        }
+        public void Set<T>(string key, string sectionName, T val) => this[key, sectionName] = val.ToString();
 
-        public void Set<T>(string key, T val)
-        {
-            this[key, DEFAULT_SECTION] = val.ToString();
-        }
+        public void Set<T>(string key, T val) => this[key, DEFAULT_SECTION] = val.ToString();
+
         #endregion
 
         #region Array Getters/Setters
@@ -513,10 +503,8 @@ namespace Pixelbyte.IO
             }
         }
 
-        bool ASet(string key, params string[] vals)
-        {
-            return ASet(key, DEFAULT_SECTION, vals);
-        }
+        bool ASet(string key, params string[] vals) => ASet(key, DEFAULT_SECTION, vals);
+
 
         /// <summary>
         /// Sets an array on the given key in the given section
@@ -542,10 +530,8 @@ namespace Pixelbyte.IO
             }
         }
 
-        public bool ASet<T>(string key, params T[] vals) where T : struct
-        {
-            return ASet<T>(key, DEFAULT_SECTION, vals);
-        }
+        public bool ASet<T>(string key, params T[] vals) where T : struct =>  ASet<T>(key, DEFAULT_SECTION, vals);
+
         #endregion
 
         #region Other Operations
@@ -892,18 +878,18 @@ namespace Pixelbyte.IO
         }
 
         #region Logging methods
-        void LogWarning(string text, params object[] args)
+        void FireLogWarning(string text, params object[] args)
         {
             string msg = string.Format("[line {0}] WARN: {1}", lineNumber, string.Format(text, args));
 
-            if (logWarning != null) logWarning(msg);
+            LogWarning?.Invoke(msg);
             //Console.WriteLine(input, args);
         }
 
-        void LogError(string text, params object[] args)
+        void FireLogError(string text, params object[] args)
         {
             string msg = string.Format("[line {0}] ERR: {1}", lineNumber, string.Format(text, args));
-            if (logError != null) logError(msg);
+            LogError?.Invoke(msg);
             //Console.WriteLine(input, args);
         }
         #endregion
@@ -1125,7 +1111,7 @@ namespace Pixelbyte.IO
                 //There cannot be a space in the key name. if we see a space, we break out
                 if (char.IsWhiteSpace(input[i]))
                 {
-                    LogWarning("Key names can't contain spaces. {0} was truncated to {1}", input.Substring(0, kvSeparatorIndex), k.ToString());
+                    FireLogWarning("Key names can't contain spaces. {0} was truncated to {1}", input.Substring(0, kvSeparatorIndex), k.ToString());
                     break;
                 }
 
@@ -1162,7 +1148,7 @@ namespace Pixelbyte.IO
             switch (iniStruct.type)
             {
                 case LineType.Comment:
-                    return string.Format(";{0}", iniStruct.comment);
+                    return $";{iniStruct.comment}";
                 case LineType.KeyValue:
                     string val = iniStruct.value;
 
@@ -1176,7 +1162,7 @@ namespace Pixelbyte.IO
                         if (iniStruct.quotechar > 0)
                             return string.Format("{0}{1}{4}{2}{4} ;{3}", iniStruct.key, outputKVSeparator, val, iniStruct.comment, iniStruct.quotechar);
                         else
-                            return string.Format("{0}{1}{2} ;{3}", iniStruct.key, outputKVSeparator, val, iniStruct.comment);
+                            return $"{iniStruct.key}{outputKVSeparator}{val} ;{iniStruct.comment}";
                     }
                     else
                     {
@@ -1184,13 +1170,13 @@ namespace Pixelbyte.IO
                         if (iniStruct.quotechar > 0)
                             return string.Format("{0}{1}{3}{2}{3}", iniStruct.key, outputKVSeparator, val, iniStruct.quotechar);
                         else
-                            return string.Format("{0}{1}{2}", iniStruct.key, outputKVSeparator, val);
+                            return $"{iniStruct.key}{outputKVSeparator}{val}";
                     }
                 case LineType.Section:
                     if (!string.IsNullOrEmpty(iniStruct.comment))
-                        return string.Format("[{0}] ;{1}", iniStruct.section, iniStruct.comment);
+                        return $"[{iniStruct.section}] ;{iniStruct.comment}";
                     else
-                        return string.Format("[{0}]", iniStruct.section);
+                        return $"[{iniStruct.section}]";
                 default:
                     return string.Empty;
             }
@@ -1208,8 +1194,7 @@ namespace Pixelbyte.IO
             //By definition, these IniLine instances should all be sections
             foreach (var st in structureOrder)
             {
-                List<IniLine> section;
-                if (sections.TryGetValue(st, out section))
+                if (sections.TryGetValue(st, out List<IniLine> section))
                 {
                     //Console.WriteLine("Length [{0}]: {1}", st, section.Count);
                     foreach (var line in section)
