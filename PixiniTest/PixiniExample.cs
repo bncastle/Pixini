@@ -38,12 +38,13 @@ namespace PixiniTest
 
                                 [AnotherSection]
                                 avagadro=6.022
+                                thearr=34,67,89,92,1
                                 ";
             var p = Pixini.LoadFromString(iniString);
 
             Console.WriteLine(p["Switch4"]);
 
-            var farr = p.AGet<float>("Switch4");
+            var farr = p.GetArr<float>("Switch4");
 
             if (farr.Length == 3) Console.WriteLine("Perahps a Vector3?");
             //if (p["misc2", "main"] == null)

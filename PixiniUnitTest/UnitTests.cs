@@ -112,12 +112,12 @@ namespace PixiniUnitTest
             var p = Pixini.LoadFromString(iniString);
 
             //Verify the arrya is of the correct length
-            Assert.AreEqual(p.AGet<string>("ShirtColors").Length, 5);
+            Assert.AreEqual(p.GetArr<string>("ShirtColors").Length, 5);
 
             Assert.IsTrue(p.IsArray("ShirtColors"));
 
             //Compare the returned collection with expected
-            CollectionAssert.AreEqual(new string[] { "red", "green", "blue", "brown", "beige" }, p.AGet<string>("shirtcolors"));
+            CollectionAssert.AreEqual(new string[] { "red", "green", "blue", "brown", "beige" }, p.GetArr<string>("shirtcolors"));
         }
 
         [TestMethod]
@@ -128,18 +128,18 @@ namespace PixiniUnitTest
             var p = Pixini.LoadFromString(iniString);
 
             //Verify the arrya is of the correct length
-            Assert.AreEqual(p.AGet<float>("Temperatures").Length, 5);
+            Assert.AreEqual(p.GetArr<float>("Temperatures").Length, 5);
 
-            var fArray = p.AGet<float>("Temperatures");
+            var fArray = p.GetArr<float>("Temperatures");
 
             //Change some of the values, re-set the array
             fArray[0] = 46.3f;
             fArray[3] = 110.1f;
 
-            p.ASet<float>("temperatures", fArray);
+            p.SetA<float>("temperatures", fArray);
 
             //Compare the returned collection with expected
-            CollectionAssert.AreEqual(new float[] { 46.3f, 63.3f, 92.1f, 110.1f, 64.4f }, p.AGet<float>("Temperatures"));
+            CollectionAssert.AreEqual(new float[] { 46.3f, 63.3f, 92.1f, 110.1f, 64.4f }, p.GetArr<float>("Temperatures"));
         }
 
         [TestMethod]
@@ -161,7 +161,7 @@ namespace PixiniUnitTest
             p["shirtcolors"] = "checkered, black, blue";
             Assert.IsTrue(p.IsArray("ShirtColors"));
 
-            CollectionAssert.AreEqual(new string[] { "checkered", "black", "blue" }, p.AGet<string>("ShirtColors"));
+            CollectionAssert.AreEqual(new string[] { "checkered", "black", "blue" }, p.GetArr<string>("ShirtColors"));
         }
 
         [TestMethod]
@@ -171,7 +171,7 @@ namespace PixiniUnitTest
             var p = Pixini.LoadFromString(iniString);
 
             //Since the above is double quoted, it should NOT have been converted to an array
-            Assert.IsNull(p.AGet<string>("cars"));
+            Assert.IsNull(p.GetArr<string>("cars"));
 
             //When we pull the value back out, it should NOT have the quotes around it
             Assert.AreEqual("German, American, Japanese", p["Cars"]);
@@ -187,7 +187,7 @@ namespace PixiniUnitTest
             var p = Pixini.LoadFromString(iniString);
 
             //Since the above is double quoted, it should NOT have been converted to an array
-            Assert.IsNull(p.AGet<string>("cars"));
+            Assert.IsNull(p.GetArr<string>("cars"));
 
             //When we pull the value back out, it should NOT have the quotes around it
             Assert.AreEqual("German, American, Japanese", p["Cars"]);

@@ -100,7 +100,7 @@ namespace Pixelbyte.IO
         /// <param name="startIndex"></param>
         /// <param name="endIndex"></param>
         /// <returns></returns>
-        public static int CountChars(this string text, char c, int startIndex = 0, int endIndex = -1)
+        public static int CountChar(this string text, char c, int startIndex = 0, int endIndex = -1)
         {
             int cnt = 0;
             if (endIndex == -1) endIndex = text.Length;
@@ -121,7 +121,7 @@ namespace Pixelbyte.IO
     /// </summary>
     public class Pixini
     {
-        public const string VERSION = "0.21";
+        public const string VERSION = "0.22";
 
         /// <summary>
         /// If a key/value is not under a specific section, it goes in the default section
@@ -141,6 +141,12 @@ namespace Pixelbyte.IO
         public char inputKVSeparator = '=';
 
         /// <summary>
+        /// <summary>
+        /// This is the separator character that Pixini will use when outputting a Key/Value Pair
+        /// According to the specs, it is supposed to be the '=' sign but it is changeable here for your pleasure
+        /// </summary>
+        public char outputKVSeparator = '=';
+
         /// Subscribe to this event to be notified of any warnings that occur during parsing
         /// </summary>
         public event Action<string> LogWarning;
@@ -149,12 +155,6 @@ namespace Pixelbyte.IO
         /// Subscribe to this event to be notified of any errors that occur during parsing
         /// </summary>
         public event Action<string> LogError;
-
-        /// <summary>
-        /// This is the separator character that Pixini will use when outputting a Key/Value Pair
-        /// According to the specs, it is supposed to be the '=' sign but it is changeable here for your pleasure
-        /// </summary>
-        public char outputKVSeparator = '=';
 
         /// <summary>
         /// Tells us what line number the parser is on
@@ -166,7 +166,6 @@ namespace Pixelbyte.IO
         /// also used to hold newly-constructed sections
         /// </summary>
         Dictionary<string, List<IniLine>> sectionMap;
-
 
         /// <summary>
         /// Contains the structure of the sections of the ini file. Which sections are in what order
@@ -308,7 +307,6 @@ namespace Pixelbyte.IO
 
         public Pixini() => Init();
 
-
         void Init()
         {
             structureOrder = new List<string>();
@@ -405,14 +403,14 @@ namespace Pixelbyte.IO
 
         /// <summary>
         /// Gets the desired value from the given key/section. This works when 'T'
-        /// is either float, int, or bool. Other types are not currently supported
+        /// is either float, int, string, or bool. Other types are not currently supported
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="key"></param>
         /// <param name="sectionName"></param>
         /// <param name="defaultVal"></param>
         /// <returns></returns>
-        public T Get<T>(string key, string sectionName = DEFAULT_SECTION, T defaultVal = default(T))// where T : struct
+        public T Get<T>(string key, string sectionName = DEFAULT_SECTION, T defaultVal = default(T))
         {
             string val = this[key, sectionName];
 
@@ -447,7 +445,7 @@ namespace Pixelbyte.IO
 
         /// <summary>
         /// Gets the array associated with this key in this section given that one exists
-        /// Note: This works when 'T' is either double, float, int, or bool. Other types are not currently supported
+        /// Note: This works when 'T' is either double, float, int, string, or bool. Other types are not currently supported
         /// Note: The array returned here can be DIRECTLY modified and the changes will show
         /// up when rendering the ini data. Be careful thought. If you want to change the size of the
         /// array, then you must use the ArrSet() method instead!
@@ -455,7 +453,7 @@ namespace Pixelbyte.IO
         /// <param name="key"></param>
         /// <param name="sectionName"></param>
         /// <returns>The array or null if it does not exist or cannot be converted to the given type T</returns>
-        public T[] AGet<T>(string key, string sectionName = DEFAULT_SECTION)
+        public T[] GetArr<T>(string key, string sectionName = DEFAULT_SECTION)
         {
             IniLine iniLine;
             var converter = System.ComponentModel.TypeDescriptor.GetConverter(typeof(T));
@@ -495,7 +493,7 @@ namespace Pixelbyte.IO
         /// <param name="section"></param>
         /// <param name="vals"></param>
         /// <returns>true on success, false otherwise</returns>
-        bool ASet(string key, string sectionName, params string[] vals)
+        bool SetA(string key, string sectionName, params string[] vals)
         {
             IniLine iniLine;
             if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
@@ -509,7 +507,7 @@ namespace Pixelbyte.IO
             }
         }
 
-        bool ASet(string key, params string[] vals) => ASet(key, DEFAULT_SECTION, vals);
+        bool SetA(string key, params string[] vals) => SetA(key, DEFAULT_SECTION, vals);
 
 
         /// <summary>
@@ -519,7 +517,7 @@ namespace Pixelbyte.IO
         /// <param name="section"></param>
         /// <param name="vals"></param>
         /// <returns>true on success, false otherwise</returns>
-        public bool ASet<T>(string key, string sectionName, params T[] vals) where T : struct
+        public bool SetA<T>(string key, string sectionName, params T[] vals) where T : struct
         {
             IniLine iniLine;
             if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
@@ -531,12 +529,12 @@ namespace Pixelbyte.IO
                 iniLine.quotechar = '\0';
 
                 //Since we are dealing with structs, we must replace the actual struct instance in the section list...
-                ModifyIniLine(iniLine);
+                ReplaceIniLine(iniLine);
                 return true;
             }
         }
 
-        public bool ASet<T>(string key, params T[] vals) where T : struct =>  ASet<T>(key, DEFAULT_SECTION, vals);
+        public bool SetA<T>(string key, params T[] vals) where T : struct =>  SetA<T>(key, DEFAULT_SECTION, vals);
 
         #endregion
 
@@ -797,7 +795,7 @@ namespace Pixelbyte.IO
         /// </summary>
         /// <param name="newIniLine"></param>
         /// <returns></returns>
-        bool ModifyIniLine(IniLine newIniLine)
+        bool ReplaceIniLine(IniLine newIniLine)
         {
             var sectionList = GetSectionList(newIniLine.section);
             if (sectionList == null) return false;
@@ -889,14 +887,12 @@ namespace Pixelbyte.IO
             string msg = string.Format("[line {0}] WARN: {1}", lineNumber, string.Format(text, args));
 
             LogWarning?.Invoke(msg);
-            //Console.WriteLine(input, args);
         }
 
         void FireLogError(string text, params object[] args)
         {
             string msg = string.Format("[line {0}] ERR: {1}", lineNumber, string.Format(text, args));
             LogError?.Invoke(msg);
-            //Console.WriteLine(input, args);
         }
         #endregion
 
@@ -1016,13 +1012,13 @@ namespace Pixelbyte.IO
             while (Char.IsWhiteSpace(input[startIndex]) && startIndex < input.Length) startIndex++;
 
             //Look for a quoted string
-            int numQuotes = input.CountChars('"', startIndex);
+            int numQuotes = input.CountChar('"', startIndex);
 
             //Ignore a quote with no matching end
             if (numQuotes < 2)
             {
                 //Try single quotes
-                numQuotes = input.CountChars('\'', startIndex);
+                numQuotes = input.CountChar('\'', startIndex);
 
                 if (numQuotes < 2)
                     numQuotes = -1;
