@@ -136,7 +136,7 @@ namespace PixiniUnitTest
             fArray[0] = 46.3f;
             fArray[3] = 110.1f;
 
-            p.SetA<float>("temperatures", fArray);
+            p.SetA("temperatures", fArray);
 
             //Compare the returned collection with expected
             CollectionAssert.AreEqual(new float[] { 46.3f, 63.3f, 92.1f, 110.1f, 64.4f }, p.GetArr<float>("Temperatures"));

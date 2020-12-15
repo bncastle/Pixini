@@ -493,31 +493,7 @@ namespace Pixelbyte.IO
         /// <param name="section"></param>
         /// <param name="vals"></param>
         /// <returns>true on success, false otherwise</returns>
-        bool SetA(string key, string sectionName, params string[] vals)
-        {
-            IniLine iniLine;
-            if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
-                return false;
-            else
-            {
-                iniLine.value = null;
-                iniLine.array = vals;
-                iniLine.quotechar = '\0';
-                return true;
-            }
-        }
-
-        bool SetA(string key, params string[] vals) => SetA(key, DEFAULT_SECTION, vals);
-
-
-        /// <summary>
-        /// Sets an array on the given key in the given section
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="section"></param>
-        /// <param name="vals"></param>
-        /// <returns>true on success, false otherwise</returns>
-        public bool SetA<T>(string key, string sectionName, params T[] vals) where T : struct
+        public bool SetA<T>(string key, string sectionName, params T[] vals)
         {
             IniLine iniLine;
             if (!GetLineInfo(key, sectionName, out iniLine) || iniLine.array == null)
@@ -534,7 +510,7 @@ namespace Pixelbyte.IO
             }
         }
 
-        public bool SetA<T>(string key, params T[] vals) where T : struct =>  SetA<T>(key, DEFAULT_SECTION, vals);
+        public bool SetA<T>(string key, params T[] vals)  =>  SetA(key, DEFAULT_SECTION, vals);
 
         #endregion
 
