@@ -46,7 +46,7 @@ namespace PixiniTest
 
             var farr = p.GetArr<float>("Switch4");
 
-            if (farr.Length == 3) Console.WriteLine("Perahps a Vector3?");
+            if (farr.Length == 3) Console.WriteLine("Perhaps a Vector3?");
             //if (p["misc2", "main"] == null)
             //    Console.WriteLine("Good: was null");
 
