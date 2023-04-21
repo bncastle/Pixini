@@ -1,6 +1,6 @@
-﻿// Copyright (c) 2015 Bryan Castleberry - Pixelbyte Studios
+﻿// Copyright (c) 2023 Pixelbyte Studios
 //
-// Pixini version 0.2 - http://pixelbytestudios.com
+// Pixini - http://pixelbytestudios.com
 //                      http://github.com/bncastle/pixini
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -121,7 +121,7 @@ namespace Pixelbyte.IO
     /// </summary>
     public class Pixini
     {
-        public const string VERSION = "0.22";
+        public const string VERSION = "0.25";
 
         /// <summary>
         /// If a key/value is not under a specific section, it goes in the default section
